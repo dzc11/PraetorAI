@@ -21,8 +21,12 @@ DB_NAME = "history.db"
 
 # Konfigurasi Gemini
 genai.configure(api_key=API_KEY)
-# Menggunakan model Flash agar cepat dan hemat token
-model = genai.GenerativeModel('gemini-1.5-flash')
+
+# --- PERBAIKAN INI ---
+# Mengganti model dari 'gemini-1.5-flash' ke 'gemini-2.5-flash' 
+# untuk memastikan kompatibilitas dan ketersediaan API yang stabil.
+model = genai.GenerativeModel('gemini-2.5-flash')
+# --------------------
 
 # Variabel Global untuk menyimpan teks UU di memori (RAM)
 LEGAL_CONTEXT = ""
@@ -167,7 +171,6 @@ def chat():
     conn.commit()
 
     # 2. Proses AI (Gemini)
-    # Prompt System: Menginstruksikan AI bertindak sebagai ahli hukum dengan konteks file
     system_prompt = f"""
     ROLE: Anda adalah AI Legal Assistant yang ahli dalam Hukum Indonesia.
     
@@ -183,7 +186,7 @@ def chat():
     """
 
     try:
-        # Memulai chat session dengan Gemini (Stateless request untuk hemat token di backend sederhana)
+        # Menggunakan model yang sudah dikonfigurasi
         response = model.generate_content([
             system_prompt,
             f"User: {user_message}",
@@ -193,8 +196,9 @@ def chat():
         bot_reply = response.text.strip()
 
     except Exception as e:
-        bot_reply = f"Maaf, terjadi kesalahan pada server AI: {str(e)}"
-        print(f"[API ERROR] {e}")
+        # Menampilkan pesan error yang lebih jelas di konsol
+        bot_reply = f"Maaf, terjadi kesalahan pada server AI. Silakan cek koneksi internet dan status API Key Anda."
+        print(f"[API ERROR] Gagal generate konten: {e}")
 
     # 3. Simpan balasan BOT ke Database
     c.execute("INSERT INTO messages (chat_id, sender, content) VALUES (?, ?, ?)", (chat_id, 'bot', bot_reply))
