@@ -10,8 +10,8 @@ app = Flask(__name__)
 # ==========================================
 # KONFIGURASI
 # ==========================================
-# Masukkan API Key Google Gemini Anda di sini
-API_KEY = "GANTI_DENGAN_API_KEY_ANDA"
+# Kunci API Google Gemini (sudah diisi)
+API_KEY = "AIzaSyA_S4gYsjXuPUZ9aMkE6307x6hkgOTiSBU"
 
 # Nama folder tempat menyimpan file UU
 UU_FOLDER = "UU"
@@ -257,6 +257,5 @@ if __name__ == '__main__':
     load_laws_from_folder()
     
     # 3. Jalankan Aplikasi
-    print("[INFO] Aplikasi berjalan di [http://127.0.0.1:5000](http://127.0.0.1:5000)")
+    print("[INFO] Aplikasi berjalan di http://127.0.0.1:5000")
     app.run(debug=True, port=5000)
-
