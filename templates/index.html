@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Asisten Hukum</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; display: flex; height: 100vh; background-color: #343541; color: white; }
+        
+        /* Sidebar */
+        #sidebar { width: 260px; background-color: #202123; padding: 10px; display: flex; flex-direction: column; border-right: 1px solid #4d4d4f; }
+        .new-chat-btn { background-color: #343541; border: 1px solid #565869; color: white; padding: 10px; width: 100%; border-radius: 5px; cursor: pointer; text-align: left; margin-bottom: 10px; transition: 0.3s; }
+        .new-chat-btn:hover { background-color: #40414f; }
+        
+        /* Search Box */
+        .search-box { margin-bottom: 10px; }
+        .search-box input { width: 93%; padding: 8px; border-radius: 5px; border: 1px solid #565869; background-color: #40414f; color: white; }
+
+        .history-list { flex-grow: 1; overflow-y: auto; }
+        .history-item { padding: 10px; cursor: pointer; border-radius: 5px; font-size: 0.9em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .history-item:hover { background-color: #3a3b45; }
+        .history-item.active { background-color: #343541; }
+
+        /* Main Chat Area */
+        #main { flex-grow: 1; display: flex; flex-direction: column; position: relative; }
+        #chat-container { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; padding-bottom: 80px; }
+        
+        .message { display: flex; padding: 20px; }
+        .message.user { background-color: #343541; }
+        .message.bot { background-color: #444654; }
+        .avatar { width: 30px; height: 30px; border-radius: 2px; margin-right: 15px; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        .user .avatar { background-color: #5436da; }
+        .bot .avatar { background-color: #10a37f; }
+        .content { line-height: 1.6; width: 100%; }
+        .content pre { background: #000; padding: 10px; border-radius: 5px; overflow-x: auto; }
+
+        /* Input Area */
+        #input-area { position: absolute; bottom: 0; left: 0; right: 0; padding: 20px; background-image: linear-gradient(180deg,rgba(53,55,64,0),#353740 58.85%); display: flex; justify-content: center; }
+        .input-container { position: relative; width: 80%; max-width: 800px; }
+        textarea { width: 100%; background-color: #40414f; border: none; color: white; padding: 15px 45px 15px 15px; border-radius: 10px; resize: none; height: 24px; font-family: inherit; box-shadow: 0 0 15px rgba(0,0,0,0.1); outline: none; }
+        #send-btn { position: absolute; right: 10px; bottom: 10px; background: transparent; border: none; cursor: pointer; color: #ccc; }
+        #send-btn:hover { color: white; }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <button class="new-chat-btn" onclick="startNewChat()">+ Chat Baru</button>
+        
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Cari riwayat..." onkeyup="searchHistory()">
+        </div>
+
+        <div class="history-list" id="historyList">
+            </div>
+    </div>
+
+    <div id="main">
+        <div id="chat-container">
+            <div class="message bot">
+                <div class="avatar">AI</div>
+                <div class="content">Halo! Saya telah membaca dokumen hukum di folder "UU". Apa yang ingin Anda tanyakan terkait undang-undang tersebut?</div>
+            </div>
+        </div>
+
+        <div id="input-area">
+            <div class="input-container">
+                <textarea id="userInput" placeholder="Kirim pesan..." rows="1" onkeydown="if(event.keyCode==13 && !event.shiftKey){event.preventDefault(); sendMessage();}"></textarea>
+                <button id="send-btn" onclick="sendMessage()">➤</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentChatId = null;
+
+        // Inisialisasi
+        document.addEventListener("DOMContentLoaded", () => {
+            loadHistory();
+            startNewChat(); // Mulai chat baru saat load
+        });
+
+        async function startNewChat() {
+            const response = await fetch('/api/new_chat', { method: 'POST' });
+            const data = await response.json();
+            currentChatId = data.chat_id;
+            document.getElementById('chat-container').innerHTML = `
+                <div class="message bot">
+                    <div class="avatar">AI</div>
+                    <div class="content">Halo! Silakan tanya tentang Undang-Undang yang ada di folder.</div>
+                </div>`;
+            loadHistory();
+        }
+
+        async function loadHistory() {
+            const response = await fetch('/api/history');
+            const chats = await response.json();
+            renderHistory(chats);
+        }
+
+        function renderHistory(chats) {
+            const list = document.getElementById('historyList');
+            list.innerHTML = '';
+            chats.forEach(chat => {
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                div.innerText = chat.title;
+                div.onclick = () => loadChat(chat.id);
+                list.appendChild(div);
+            });
+        }
+
+        async function searchHistory() {
+            const keyword = document.getElementById('searchInput').value;
+            if (keyword.length === 0) {
+                loadHistory();
+                return;
+            }
+            const response = await fetch('/api/search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ keyword: keyword })
+            });
+            const results = await response.json();
+            renderHistory(results);
+        }
+
+        async function loadChat(chatId) {
+            currentChatId = chatId;
+            const response = await fetch(`/api/history/${chatId}`);
+            const messages = await response.json();
+            
+            const container = document.getElementById('chat-container');
+            container.innerHTML = '';
+            
+            messages.forEach(msg => {
+                appendMessage(msg.sender, msg.content);
+            });
+        }
+
+        function appendMessage(role, text) {
+            const container = document.getElementById('chat-container');
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+            div.innerHTML = `
+                <div class="avatar">${role === 'user' ? 'U' : 'AI'}</div>
+                <div class="content">${text.replace(/\n/g, '<br>')}</div>
+            `;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('userInput');
+            const text = input.value.trim();
+            if (!text) return;
+
+            if (!currentChatId) await startNewChat();
+
+            appendMessage('user', text);
+            input.value = '';
+
+            // Tampilkan loading sementara
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message bot loading';
+            loadingDiv.innerHTML = '<div class="avatar">AI</div><div class="content">Sedang membaca UU...</div>';
+            document.getElementById('chat-container').appendChild(loadingDiv);
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chat_id: currentChatId, message: text })
+                });
+                const data = await response.json();
+                
+                // Hapus loading
+                loadingDiv.remove();
+                
+                appendMessage('bot', data.response);
+                loadHistory(); // Refresh list di sidebar jika judul berubah
+            } catch (error) {
+                loadingDiv.remove();
+                appendMessage('bot', "Error: Gagal menghubungi server.");
+            }
+        }
+    </script>
+</body>
+</html>
